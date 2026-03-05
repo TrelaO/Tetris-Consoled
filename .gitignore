@@ -39,3 +39,29 @@
 
 # debug information files
 *.dwo
+
+###############################
+# Visual Studio Specific
+###############################
+
+# User-specific files (konfiguracja okien, layoutu itp.)
+*.suo
+*.user
+*.userosscache
+*.sln.docattachments
+
+# Foldery generowane podczas kompilacji i cache
+[Bb]in/
+[Oo]bj/
+.vs/
+
+# Pliki bazy danych i diagnostyki
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# Pliki logów i tymczasowe
+*.log
+*.tlog
+*.lastbuildstate
