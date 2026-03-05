@@ -4,8 +4,13 @@
 #include "IntroTetris.h"
 
 int main() {
-    introTetris();
-    mainLoop();
-    gameOver();
+    while (true) {
+        introTetris(); 
+        bool exitedToMenu = mainLoop();
+        
+        if (!exitedToMenu) {
+            gameOver(); 
+        }
+    }
     return 0;
 }

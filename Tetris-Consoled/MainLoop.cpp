@@ -9,7 +9,7 @@
 
 static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused);
 
-void mainLoop() {
+bool mainLoop() {
     auto lastTime = std::chrono::high_resolution_clock::now();
     const int boardWidth = 10;
     const int boardHeight = 20;
@@ -29,8 +29,13 @@ void mainLoop() {
 
         bool playerMove = false;
         processInput(board, block, playerMove, gamePaused);
+        
         if (gamePaused) {
             pauseGame(board, gamePaused);
+            if (gamePaused) { 
+                system("cls");
+                return true; // WYJŚCIE DO MENU (ESC)
+            }
             continue;
         }
 
@@ -45,7 +50,7 @@ void mainLoop() {
                 randomBlockType = static_cast<Block::Type>(rand() % 7);
                 block = Block(randomBlockType, board.getWidth() / 2 - 1, 0);
                 if (board.checkCollision(block)) {
-                    break;
+                    return false; // GAME OVER (Przegrana)
                 }
             }
 
@@ -68,9 +73,15 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
     if (_kbhit()) {
         int ch = _getch();
         
+        // Obsługa ESC podczas gry - włącza pauzę
+        if (ch == 27) {
+            gamePaused = true;
+            return;
+        }
+
         // Obsługa klawiszy specjalnych (strzałki)
         if (ch == 0 || ch == 224) {
-            ch = _getch(); // Pobierz właściwy kod strzałki
+            ch = _getch(); 
             if (gamePaused) return;
 
             board.removeBlock(block);
@@ -91,17 +102,14 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
                 playerMove = true;
                 break;
             case 72: // Strzałka w górę (Obrót)
-                goto rotate_logic; // Użycie etykiety dla wspólnej logiki obrotu
+                goto rotate_logic;
                 break;
             }
             board.addBlock(block);
             return;
         }
 
-        if (ch == 'q' || ch == 'Q') {
-            exit(0);
-        }
-        else if (ch == 'z' || ch == 'Z') {
+        if (ch == 'z' || ch == 'Z') {
             gamePaused = !gamePaused;
         }
         else if (!gamePaused) {
@@ -170,13 +178,16 @@ void pauseGame(Board& board, bool& gamePaused) {
     pos.Y = (short)pauseMessagePosY;
     SetConsoleCursorPosition(consoleHandle, pos);
 
-    std::cout << "Game Paused, Click 'Z' to Resume.";
+    std::cout << "Paused. 'Z' - Resume, 'ESC' - Main Menu, 'Q' - Quit Game";
 
     while (gamePaused) {
         if (_kbhit()) {
-            char ch = _getch();
-            if (ch == 'q' || ch == 'Q') {
-                exit(0);
+            int ch = _getch();
+            if (ch == 27) { // ESC
+                return; // gamePaused pozostaje true -> mainLoop zwróci true -> powrót do intro
+            }
+            else if (ch == 'q' || ch == 'Q') {
+                exit(0); // Całkowite zamknięcie aplikacji
             }
             else if (ch == 'z' || ch == 'Z') {
                 gamePaused = false;  
@@ -186,5 +197,5 @@ void pauseGame(Board& board, bool& gamePaused) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     system("cls");
-    board.drawBoard();
+    if (!gamePaused) board.drawBoard();
 }
