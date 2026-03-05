@@ -15,6 +15,7 @@ public:
     void rotate();
 
     const std::vector<Point>& getPoints() const;
+    Type getType() const { return type; } 
 
 private:
     Type type;

@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <thread>
 
-static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused);
+static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap);
 
 bool mainLoop() {
     auto lastTime = std::chrono::high_resolution_clock::now();
@@ -16,11 +16,24 @@ bool mainLoop() {
     Board board(boardWidth, boardHeight);
     
     srand(static_cast<unsigned>(time(0)));
-    Block::Type randomBlockType = static_cast<Block::Type>(rand() % 7);
-    Block block(randomBlockType, board.getWidth() / 2 - 1, 0);
+    Block::Type currentType = static_cast<Block::Type>(rand() % 7);
+    Block::Type nextType = static_cast<Block::Type>(rand() % 7);
+    Block::Type holdType;
+    bool hasHold = false;
+    bool canSwap = true; // Pozwala na tylko jedną zamianę na turę
+    int blockCount = 0;
+    int level = 1;
+    float fallSpeed = 0.5f; // Początkowa prędkość
+    int score = 0;
+    // int level = 1;
+    // float fallSpeed = 0.5f; // Początkowa prędkość
+    // int score = 0; // Nowa zmienna dla wyniku
+
+    Block block(currentType, board.getWidth() / 2 - 1, 0);
     
     hideCursor();
-    board.drawBoard();
+    board.drawBoard(level, score); // Przekazujemy score
+
     bool gamePaused = false;
 
     while (true) {
@@ -28,7 +41,8 @@ bool mainLoop() {
         std::chrono::duration<float> elapsed = currentTime - lastTime;
 
         bool playerMove = false;
-        processInput(board, block, playerMove, gamePaused);
+        // Przekazujemy nowe parametry do obsługi wejścia (potrzebna zmiana sygnatury)
+        processInput(board, block, playerMove, gamePaused, currentType, holdType, hasHold, canSwap);
         
         if (gamePaused) {
             pauseGame(board, gamePaused);
@@ -39,25 +53,38 @@ bool mainLoop() {
             continue;
         }
 
-        if (elapsed.count() >= 0.5) {
+        if (elapsed.count() >= fallSpeed) {
             board.removeBlock(block);
-
             block.moveDown();
+
             if (board.checkCollision(block)) {
                 block.moveUp();
                 board.lockBlock(block);
-                board.clearWell();
-                randomBlockType = static_cast<Block::Type>(rand() % 7);
-                block = Block(randomBlockType, board.getWidth() / 2 - 1, 0);
+                
+                // OBLICZANIE SCORE
+                int lines = board.clearWell();
+                if (lines > 0) {
+                    score += level * (lines * lines); // Level * Liczba_linii ^ 2
+                }
+
+                blockCount++;
+                if (blockCount % 8 == 0) {
+                    level++;
+                    fallSpeed *= 0.9f;
+                }
+
+                currentType = nextType;
+                nextType = static_cast<Block::Type>(rand() % 7);
+                block = Block(currentType, board.getWidth() / 2 - 1, 0);
+                canSwap = true;
                 if (board.checkCollision(block)) {
-                    return false; // GAME OVER (Przegrana)
+                    return false;
                 }
             }
-
             board.addBlock(block);
             lastTime = currentTime;
         }
-        board.updateWell();
+        board.updateWell(nextType, holdType, hasHold, level, score); // Przekazujemy score
     }
 }
 
@@ -69,7 +96,8 @@ void hideCursor() {
     SetConsoleCursorInfo(consoleHandle, &info);
 }
 
-static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused) {
+static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, 
+                         Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap) {
     if (_kbhit()) {
         int ch = _getch();
         
@@ -160,6 +188,23 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
             }
             board.addBlock(block);
         }
+
+        if ((ch == 'c' || ch == 'C') && !gamePaused && canSwap) {
+            board.removeBlock(block);
+            if (!hasHold) {
+                holdType = currentType;
+                currentType = static_cast<Block::Type>(rand() % 7); // Losuj nowy, jeśli nie było nic w hold
+                hasHold = true;
+            } else {
+                Block::Type temp = currentType;
+                currentType = holdType;
+                holdType = temp;
+            }
+            block = Block(currentType, board.getWidth() / 2 - 1, 0);
+            canSwap = false; // Blokujemy ponowną zamianę aż do upadku bloku
+            board.addBlock(block);
+            playerMove = true;
+        }
     }
 }
 
@@ -197,5 +242,5 @@ void pauseGame(Board& board, bool& gamePaused) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     system("cls");
-    if (!gamePaused) board.drawBoard();
+    if (!gamePaused) board.drawBoard(1, 0);
 }

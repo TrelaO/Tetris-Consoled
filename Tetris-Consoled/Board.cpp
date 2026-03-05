@@ -1,7 +1,16 @@
 ﻿#include "Board.h"
 #include <iostream>
+#include <windows.h>
 
-Board::Board(int w, int h) : boardWidth(w), boardHeight(h), well(w, std::vector<int>(h, 0)) {}
+// Definicja stałych punktów zakotwiczenia (Layout)
+const int OFFSET_X = 20;    // Margines lewy
+const int OFFSET_Y = 2;     // Margines górny
+const int BOARD_DRAW_X = OFFSET_X + 2; // Początek wnętrza planszy (za ##)
+const int HUD_X = OFFSET_X + 29;       // Pozycja ramek bocznych (przesunięta o 1 w prawo)
+
+Board::Board(int w, int h) 
+    : boardWidth(w), boardHeight(h), well(w, std::vector<int>(h, 0)), 
+      lastNextType(Block::Type::I), lastHoldType(Block::Type::I) {}
 
 void Board::addBlock(const Block& block) {
     for (const auto& point : block.getPoints()) {
@@ -19,22 +28,45 @@ void Board::removeBlock(const Block& block) {
     }
 }
 
-void Board::drawBoard() const {
-    for (int i = 0; i < 3; ++i) std::cout << std::endl;
+void Board::drawBoard(int level, int score) const {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    system("cls");
+    firstDraw = true; // Resetujemy stan po wyczyszczeniu ekranu
+    lastLevel = level;
+
+    // Rysowanie statycznej ramki planszy i numeracji
     for (int i = 0; i < boardHeight; ++i) {
-        std::cout << "                    " << "##";
-        for (int j = 0; j < boardWidth; ++j) {
-            std::cout << (well[j][i] == 1 ? "[]" : "  ");
-        }
-        std::cout << "## " << boardHeight - i << std::endl;
+        SetConsoleCursorPosition(hOut, { (short)OFFSET_X, (short)(OFFSET_Y + i) });
+        std::cout << "##";
+        SetConsoleCursorPosition(hOut, { (short)(OFFSET_X + 2 + (boardWidth * 2)), (short)(OFFSET_Y + i) });
+        std::cout << "## " << (boardHeight - i);
     }
-    std::cout << "                    ";
+    SetConsoleCursorPosition(hOut, { (short)OFFSET_X, (short)(OFFSET_Y + boardHeight) });
     for (int i = 0; i < boardWidth + 2; ++i) std::cout << "##";
-    std::cout << std::endl;
-    for (int i = 0; i < 3; ++i) std::cout << std::endl;
+
+    // Statyczne elementy HUD
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 1) });
+    std::cout << "NEXT BLOCK";
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 2) });
+    std::cout << "----------";
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 7) });
+    std::cout << "----------";
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 10) });
+    std::cout << "HOLD BLOCK";
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 11) });
+    std::cout << "----------";
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 16) });
+    std::cout << "----------";
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 18) });
+    std::cout << "LEVEL: " << level;
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 19) });
+    std::cout << "----------";
+    SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 20) });
+    std::cout << "SCORE: " << score;
 }
 
-void Board::clearWell() {
+int Board::clearWell() {
+    int linesCleared = 0;
     for (int i = 0; i < boardHeight; ++i) {
         bool fullLine = true;
         for (int j = 0; j < boardWidth; ++j) {
@@ -44,6 +76,7 @@ void Board::clearWell() {
             }
         }
         if (fullLine) {
+            linesCleared++;
             for (int k = i; k > 0; --k) {
                 for (int j = 0; j < boardWidth; ++j) {
                     well[j][k] = well[j][k - 1];
@@ -52,22 +85,83 @@ void Board::clearWell() {
             for (int j = 0; j < boardWidth; ++j) well[j][0] = 0;
         }
     }
+    return linesCleared;
 }
 
-void Board::updateWell() {
-    std::cout << "\033[4;1H"; // Reset cursor to top-ish position
+static void drawBlockPreview(Block::Type type, int startX, int startY, const std::string& symbol) {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    // Czyścimy obszar podglądu (4x4)
+    for (int i = 0; i < 4; ++i) {
+        SetConsoleCursorPosition(hOut, { (short)startX, (short)(startY + i) });
+        std::cout << "        ";
+    }
+
+    std::vector<std::pair<int, int>> shape;
+    switch (type) {
+        case Block::Type::I: shape = { {1,0},{1,1},{1,2},{1,3} }; break;
+        case Block::Type::J: shape = { {1,0},{1,1},{1,2},{0,2} }; break;
+        case Block::Type::L: shape = { {1,0},{1,1},{1,2},{2,2} }; break;
+        case Block::Type::O: shape = { {1,1},{2,1},{1,2},{2,2} }; break;
+        case Block::Type::S: shape = { {2,1},{1,1},{1,2},{0,2} }; break;
+        case Block::Type::T: shape = { {1,1},{0,2},{1,2},{2,2} }; break;
+        case Block::Type::Z: shape = { {0,1},{1,1},{1,2},{2,2} }; break;
+    }
+
+    for (auto& p : shape) {
+        SetConsoleCursorPosition(hOut, { (short)(startX + p.first * 2), (short)(startY + p.second) });
+        std::cout << symbol;
+    }
+}
+
+void Board::updateWell(Block::Type nextType, Block::Type holdType, bool hasHold, int level, int score) {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    
+    // Rysowanie zawartości studni (to musi zostać, ale można zoptymalizować w przyszłości)
     for (int i = 0; i < boardHeight; ++i) {
-        std::cout << "                    " << "##";
+        SetConsoleCursorPosition(hOut, { (short)BOARD_DRAW_X, (short)(OFFSET_Y + i) });
         for (int j = 0; j < boardWidth; ++j) {
             if (well[j][i] == 1) std::cout << "()";
             else if (well[j][i] == 2) std::cout << "[]";
             else std::cout << "  ";
         }
-        std::cout << "## " << boardHeight - i << std::endl;
     }
-    std::cout << "                    ";
-    for (int i = 0; i < boardWidth + 2; ++i) std::cout << "##";
-    std::cout << std::endl;
+
+    // Aktualizacja podglądów TYLKO gdy się zmieniły
+    if (firstDraw || nextType != lastNextType) {
+        drawBlockPreview(nextType, HUD_X + 1, OFFSET_Y + 3, "()");
+        lastNextType = nextType;
+    }
+
+    if (hasHold && (firstDraw || !lastHasHold || holdType != lastHoldType)) {
+        drawBlockPreview(holdType, HUD_X + 1, OFFSET_Y + 12, "[]");
+        lastHoldType = holdType;
+        lastHasHold = true;
+    }
+
+    // Aktualizacja poziomu i wyniku w HUD
+    if (firstDraw || level != lastLevel) {
+        SetConsoleCursorPosition(hOut, { (short)(HUD_X + 7), (short)(OFFSET_Y + 18) });
+        std::cout << level << "  "; // Spacje na wypadek zmniejszenia liczby cyfr
+        lastLevel = level;
+    }
+    
+    // Zawsze aktualizujemy score, jeśli się zmienił (użyjemy podobnego mechanizmu cache)
+    static int lastScore = -1;
+    if (firstDraw || score != lastScore) {
+        SetConsoleCursorPosition(hOut, { (short)(HUD_X + 7), (short)(OFFSET_Y + 20) });
+        std::cout << score << "       "; 
+        lastScore = score;
+    }
+
+    firstDraw = false;
+}
+
+void Board::lockBlock(const Block& block) {
+    for (const auto& point : block.getPoints()) {
+        if (point.x >= 0 && point.x < boardWidth && point.y >= 0 && point.y < boardHeight) {
+            well[point.x][point.y] = 2;
+        }
+    }
 }
 
 bool Board::checkCollision(const Block& block) const {
@@ -77,12 +171,4 @@ bool Board::checkCollision(const Block& block) const {
         }
     }
     return false;
-}
-
-void Board::lockBlock(const Block& block) {
-    for (const auto& point : block.getPoints()) {
-        if (point.x >= 0 && point.x < boardWidth && point.y >= 0 && point.y < boardHeight) {
-            well[point.x][point.y] = 2;
-        }
-    }
 }

@@ -8,14 +8,21 @@ private:
     const int boardHeight;
     std::vector<std::vector<int>> well;
 
+
+    mutable Block::Type lastNextType;
+    mutable Block::Type lastHoldType;
+    mutable bool lastHasHold = false;
+    mutable int lastLevel = 0;
+    mutable bool firstDraw = true;
+
 public:
     Board(int w, int h);
 
     void addBlock(const Block& block);
     void removeBlock(const Block& block);
-    void drawBoard() const;
-    void clearWell();
-    void updateWell();
+    void drawBoard(int level, int score) const; // Dodano score
+    int clearWell(); // Zmieniono na int
+    void updateWell(Block::Type nextType, Block::Type holdType, bool hasHold, int level, int score); // Dodano score
     bool checkCollision(const Block& block) const;
     void lockBlock(const Block& block);
 
