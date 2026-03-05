@@ -66,7 +66,38 @@ void hideCursor() {
 
 static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused) {
     if (_kbhit()) {
-        char ch = _getch();
+        int ch = _getch();
+        
+        // Obsługa klawiszy specjalnych (strzałki)
+        if (ch == 0 || ch == 224) {
+            ch = _getch(); // Pobierz właściwy kod strzałki
+            if (gamePaused) return;
+
+            board.removeBlock(block);
+            switch (ch) {
+            case 75: // Strzałka w lewo
+                block.moveLeft();
+                if (board.checkCollision(block)) block.moveRight();
+                playerMove = true;
+                break;
+            case 77: // Strzałka w prawo
+                block.moveRight();
+                if (board.checkCollision(block)) block.moveLeft();
+                playerMove = true;
+                break;
+            case 80: // Strzałka w dół
+                block.moveDown();
+                if (board.checkCollision(block)) block.moveUp();
+                playerMove = true;
+                break;
+            case 72: // Strzałka w górę (Obrót)
+                goto rotate_logic; // Użycie etykiety dla wspólnej logiki obrotu
+                break;
+            }
+            board.addBlock(block);
+            return;
+        }
+
         if (ch == 'q' || ch == 'Q') {
             exit(0);
         }
@@ -76,37 +107,32 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
         else if (!gamePaused) {
             board.removeBlock(block);
             switch (ch) {
-            case 75: // Left
+            case 'a': case 'A':
                 block.moveLeft();
-                if (board.checkCollision(block)) {
-                    block.moveRight();
-                    playerMove = true;
-                }
+                if (board.checkCollision(block)) block.moveRight();
+                playerMove = true;
                 break;
-            case 77: // Right
+            case 'd': case 'D':
                 block.moveRight();
-                if (board.checkCollision(block)) {
-                    block.moveLeft();
-                    playerMove = true;
-                }
+                if (board.checkCollision(block)) block.moveLeft();
+                playerMove = true;
                 break;
-            case 80: // Down
+            case 's': case 'S':
                 block.moveDown();
-                if (board.checkCollision(block)) {
-                    block.moveUp();
-                    playerMove = true;
-                }
+                if (board.checkCollision(block)) block.moveUp();
+                playerMove = true;
                 break;
-            case 72: // Rotate
+            case 'w': case 'W':
+            rotate_logic:
                 block.rotate();
                 if (board.checkCollision(block)) {
                     bool rotatedSuccessfully = false;
-                    for (int i = 0; i < 5; ++i) { 
-                        if (i == 0) block.moveRight();  
-                        else if (i == 1) block.moveLeft();  
-                        else if (i == 2) { block.moveLeft(); block.moveLeft(); } 
-                        else if (i == 3) { block.moveRight(); block.moveRight(); }  
-                        else if (i == 4) { block.moveUp(); }  
+                    for (int i = 0; i < 5; ++i) {
+                        if (i == 0) block.moveRight();
+                        else if (i == 1) block.moveLeft();
+                        else if (i == 2) { block.moveLeft(); block.moveLeft(); }
+                        else if (i == 3) { block.moveRight(); block.moveRight(); }
+                        else if (i == 4) { block.moveUp(); }
 
                         if (!board.checkCollision(block)) {
                             rotatedSuccessfully = true;
@@ -119,10 +145,9 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
                         else if (i == 3) { block.moveLeft(); block.moveLeft(); }
                         else if (i == 4) { block.moveDown(); }
                     }
-                    if (!rotatedSuccessfully) {
-                        block.rotate(); block.rotate(); block.rotate();  
-                    }
+                    if (!rotatedSuccessfully) block.rotate();
                 }
+                playerMove = true;
                 break;
             }
             board.addBlock(block);
