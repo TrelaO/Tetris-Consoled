@@ -1,4 +1,6 @@
-﻿#include "IntroTetris.h"
+﻿//IntroTetris.cpp
+
+#include "IntroTetris.h"
 #include <iostream>
 #include <conio.h>
 #include <windows.h>
@@ -8,7 +10,6 @@
 #include <fstream>
 #include <vector>
 
-// Pomocnicza funkcja do centrowania tekstu na siatce
 void printCentered(HANDLE hOut, int y, const std::string& text, int columns) {
     COORD pos;
     pos.X = (short)((columns - (int)text.length()) / 2);
@@ -26,7 +27,6 @@ void saveScore(const std::string& name, int score) {
 }
 
 void introTetris() {
-    // Twoje logo w formie wektora linii
     std::vector<std::string> logoLines = {
         " _________ _______ _________ _______ _________ _______ ",
         "\\__   __/(  ____ \\\\__   __/(  ____ )\\__   __/(  ____ \\",
@@ -54,26 +54,31 @@ void introTetris() {
         int columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
         int rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 
-        // Start rysowania od połowy wysokości minus połowa wysokości logo
         int startY = (rows / 2) - ((int)logoLines.size() / 2) - 4;
 
-        // Rysowanie logo linia po linii (centrowanie)
         for (size_t i = 0; i < logoLines.size(); ++i) {
             int x = (columns - (int)logoLines[i].length()) / 2;
             SetConsoleCursorPosition(hOut, { (short)x, (short)(startY + (int)i) });
             
-            if (showAnimation) {
-                for (char c : logoLines[i]) {
-                    std::cout << c;
+            for (char c : logoLines[i]) {
+                if (showAnimation) {
+                    if ((GetAsyncKeyState(VK_RETURN) & 0x8000) || (GetAsyncKeyState(VK_ESCAPE) & 0x8000)) {
+                        showAnimation = false;
+                    }
+                }
+                std::cout << c;
+                if (showAnimation) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 }
-            } else {
-                std::cout << logoLines[i];
             }
         }
+
+        while ((GetAsyncKeyState(VK_RETURN) & 0x8000) || (GetAsyncKeyState(VK_ESCAPE) & 0x8000)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
         showAnimation = false;
 
-        // Instrukcje
         int instrY = startY + (int)logoLines.size() + 2;
         for (int i = 0; i < instructions.size(); ++i) {
             printCentered(hOut, instrY + (i * 2), instructions[i], columns);
@@ -114,7 +119,6 @@ void gameOver(int score) {
     printCentered(hOut, centerY - 2, "YOUR SCORE: " + std::to_string(score), columns);
     printCentered(hOut, centerY, "Enter name to save (ESC to skip):", columns);
 
-    // Pozycjonowanie pola wpisywania imienia
     COORD inputPos = { (short)(columns / 2 - 11), (short)(centerY + 1) };
     SetConsoleCursorPosition(hOut, inputPos);
     

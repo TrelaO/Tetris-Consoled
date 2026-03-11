@@ -1,4 +1,7 @@
-﻿#pragma once
+﻿//Block.h
+
+#pragma once
+
 #include "Point.h"
 #include <vector>
 

@@ -1,4 +1,6 @@
-﻿#include "Block.h"
+﻿//Block.cpp
+
+#include "Block.h"
 
 Block::Block(Type type, int startX, int startY) : Point(startX, startY), type(type) {
     initializePoints(startX, startY);

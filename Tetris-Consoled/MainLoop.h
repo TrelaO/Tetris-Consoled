@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿//MainLoop.h
+
+#pragma once
 
 #include "Board.h"
 #include "Block.h"

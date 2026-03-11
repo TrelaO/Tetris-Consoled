@@ -1,4 +1,6 @@
-﻿#include "MainLoop.h"
+﻿//MainLoop.cpp
+
+#include "MainLoop.h"
 #include "IntroTetris.h"
 #include <iostream>
 #include <conio.h>
@@ -20,19 +22,17 @@ bool mainLoop(int& finalScore) {
     Block::Type nextType = static_cast<Block::Type>(rand() % 7);
     Block::Type holdType;
     bool hasHold = false;
-    bool canSwap = true; // Pozwala na tylko jedną zamianę na turę
+    bool canSwap = true; 
     int blockCount = 0;
     int level = 1;
-    float fallSpeed = 0.5f; // Początkowa prędkość
+    float fallSpeed = 0.5f; 
     int score = 0;
-    // int level = 1;
-    // float fallSpeed = 0.5f; // Początkowa prędkość
-    // int score = 0; // Nowa zmienna dla wyniku
+
 
     Block block(currentType, board.getWidth() / 2 - 1, 0);
     
     hideCursor();
-    board.drawBoard(level, score); // Przekazujemy score
+    board.drawBoard(level, score);
 
     bool gamePaused = false;
 
@@ -41,14 +41,13 @@ bool mainLoop(int& finalScore) {
         std::chrono::duration<float> elapsed = currentTime - lastTime;
 
         bool playerMove = false;
-        // Przekazujemy nowe parametry do obsługi wejścia (potrzebna zmiana sygnatury)
         processInput(board, block, playerMove, gamePaused, currentType, holdType, hasHold, canSwap);
         
         if (gamePaused) {
             pauseGame(board, gamePaused);
             if (gamePaused) { 
                 system("cls");
-                return true; // WYJŚCIE DO MENU (ESC)
+                return true; 
             }
             continue;
         }
@@ -61,10 +60,9 @@ bool mainLoop(int& finalScore) {
                 block.moveUp();
                 board.lockBlock(block);
                 
-                // OBLICZANIE SCORE
                 int lines = board.clearWell();
                 if (lines > 0) {
-                    score += level * (lines * lines); // Level * Liczba_linii ^ 2
+                    score += level * (lines * lines); 
                 }
 
                 blockCount++;
@@ -78,14 +76,14 @@ bool mainLoop(int& finalScore) {
                 block = Block(currentType, board.getWidth() / 2 - 1, 0);
                 canSwap = true;
                 if (board.checkCollision(block)) {
-                    finalScore = score; // Zapisujemy wynik końcowy
-                    return false; // Game Over
+                    finalScore = score; 
+                    return false; 
                 }
             }
             board.addBlock(block);
             lastTime = currentTime;
         }
-        board.updateWell(nextType, holdType, hasHold, level, score); // Przekazujemy score
+        board.updateWell(nextType, holdType, hasHold, level, score);
     }
 }
 
@@ -102,35 +100,33 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
     if (_kbhit()) {
         int ch = _getch();
         
-        // Obsługa ESC podczas gry - włącza pauzę
         if (ch == 27) {
             gamePaused = true;
             return;
         }
 
-        // Obsługa klawiszy specjalnych (strzałki)
         if (ch == 0 || ch == 224) {
             ch = _getch(); 
             if (gamePaused) return;
 
             board.removeBlock(block);
             switch (ch) {
-            case 75: // Strzałka w lewo
+            case 75: 
                 block.moveLeft();
                 if (board.checkCollision(block)) block.moveRight();
                 playerMove = true;
                 break;
-            case 77: // Strzałka w prawo
+            case 77: 
                 block.moveRight();
                 if (board.checkCollision(block)) block.moveLeft();
                 playerMove = true;
                 break;
-            case 80: // Strzałka w dół
+            case 80: 
                 block.moveDown();
                 if (board.checkCollision(block)) block.moveUp();
                 playerMove = true;
                 break;
-            case 72: // Strzałka w górę (Obrót)
+            case 72: 
                 goto rotate_logic;
                 break;
             }
@@ -194,7 +190,7 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
             board.removeBlock(block);
             if (!hasHold) {
                 holdType = currentType;
-                currentType = static_cast<Block::Type>(rand() % 7); // Losuj nowy, jeśli nie było nic w hold
+                currentType = static_cast<Block::Type>(rand() % 7); 
                 hasHold = true;
             } else {
                 Block::Type temp = currentType;
@@ -202,7 +198,7 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
                 holdType = temp;
             }
             block = Block(currentType, board.getWidth() / 2 - 1, 0);
-            canSwap = false; // Blokujemy ponowną zamianę aż do upadku bloku
+            canSwap = false; 
             board.addBlock(block);
             playerMove = true;
         }
@@ -229,11 +225,11 @@ void pauseGame(Board& board, bool& gamePaused) {
     while (gamePaused) {
         if (_kbhit()) {
             int ch = _getch();
-            if (ch == 27) { // ESC
-                return; // gamePaused pozostaje true -> mainLoop zwróci true -> powrót do intro
+            if (ch == 27) { 
+                return; 
             }
             else if (ch == 'q' || ch == 'Q') {
-                exit(0); // Całkowite zamknięcie aplikacji
+                exit(0); 
             }
             else if (ch == 'z' || ch == 'Z') {
                 gamePaused = false;  

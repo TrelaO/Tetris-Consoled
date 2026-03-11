@@ -1,12 +1,14 @@
-﻿#include "Board.h"
+﻿//Board.cpp
+
+#include "Board.h"
 #include <iostream>
 #include <windows.h>
 
-// Definicja stałych punktów zakotwiczenia (Layout)
-const int OFFSET_X = 20;    // Margines lewy
-const int OFFSET_Y = 2;     // Margines górny
-const int BOARD_DRAW_X = OFFSET_X + 2; // Początek wnętrza planszy (za ##)
-const int HUD_X = OFFSET_X + 29;       // Pozycja ramek bocznych (przesunięta o 1 w prawo)
+
+const int OFFSET_X = 20;    
+const int OFFSET_Y = 2;     
+const int BOARD_DRAW_X = OFFSET_X + 2; 
+const int HUD_X = OFFSET_X + 29;       
 
 Board::Board(int w, int h) 
     : boardWidth(w), boardHeight(h), well(w, std::vector<int>(h, 0)), 
@@ -31,10 +33,10 @@ void Board::removeBlock(const Block& block) {
 void Board::drawBoard(int level, int score) const {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     system("cls");
-    firstDraw = true; // Resetujemy stan po wyczyszczeniu ekranu
+    firstDraw = true; 
     lastLevel = level;
 
-    // Rysowanie statycznej ramki planszy i numeracji
+
     for (int i = 0; i < boardHeight; ++i) {
         SetConsoleCursorPosition(hOut, { (short)OFFSET_X, (short)(OFFSET_Y + i) });
         std::cout << "##";
@@ -44,7 +46,7 @@ void Board::drawBoard(int level, int score) const {
     SetConsoleCursorPosition(hOut, { (short)OFFSET_X, (short)(OFFSET_Y + boardHeight) });
     for (int i = 0; i < boardWidth + 2; ++i) std::cout << "##";
 
-    // Statyczne elementy HUD
+
     SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 1) });
     std::cout << "NEXT BLOCK";
     SetConsoleCursorPosition(hOut, { (short)HUD_X, (short)(OFFSET_Y + 2) });
@@ -90,7 +92,6 @@ int Board::clearWell() {
 
 static void drawBlockPreview(Block::Type type, int startX, int startY, const std::string& symbol) {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    // Czyścimy obszar podglądu (4x4)
     for (int i = 0; i < 4; ++i) {
         SetConsoleCursorPosition(hOut, { (short)startX, (short)(startY + i) });
         std::cout << "        ";
@@ -116,7 +117,6 @@ static void drawBlockPreview(Block::Type type, int startX, int startY, const std
 void Board::updateWell(Block::Type nextType, Block::Type holdType, bool hasHold, int level, int score) {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     
-    // Rysowanie zawartości studni (to musi zostać, ale można zoptymalizować w przyszłości)
     for (int i = 0; i < boardHeight; ++i) {
         SetConsoleCursorPosition(hOut, { (short)BOARD_DRAW_X, (short)(OFFSET_Y + i) });
         for (int j = 0; j < boardWidth; ++j) {
@@ -126,7 +126,7 @@ void Board::updateWell(Block::Type nextType, Block::Type holdType, bool hasHold,
         }
     }
 
-    // Aktualizacja podglądów TYLKO gdy się zmieniły
+
     if (firstDraw || nextType != lastNextType) {
         drawBlockPreview(nextType, HUD_X + 1, OFFSET_Y + 3, "()");
         lastNextType = nextType;
@@ -138,14 +138,12 @@ void Board::updateWell(Block::Type nextType, Block::Type holdType, bool hasHold,
         lastHasHold = true;
     }
 
-    // Aktualizacja poziomu i wyniku w HUD
     if (firstDraw || level != lastLevel) {
         SetConsoleCursorPosition(hOut, { (short)(HUD_X + 7), (short)(OFFSET_Y + 18) });
-        std::cout << level << "  "; // Spacje na wypadek zmniejszenia liczby cyfr
+        std::cout << level << "  "; 
         lastLevel = level;
     }
     
-    // Zawsze aktualizujemy score, jeśli się zmienił (użyjemy podobnego mechanizmu cache)
     static int lastScore = -1;
     if (firstDraw || score != lastScore) {
         SetConsoleCursorPosition(hOut, { (short)(HUD_X + 7), (short)(OFFSET_Y + 20) });
