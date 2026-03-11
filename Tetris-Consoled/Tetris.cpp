@@ -6,10 +6,11 @@
 int main() {
     while (true) {
         introTetris(); 
-        bool exitedToMenu = mainLoop();
+        int score = 0;
+        bool exitedToMenu = mainLoop(score);
         
         if (!exitedToMenu) {
-            gameOver(); 
+            gameOver(score); 
         }
     }
     return 0;

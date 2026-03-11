@@ -6,7 +6,7 @@
 /**
  * @brief Starts and manages the main game loop.
  */
-bool mainLoop();
+bool mainLoop(int& finalScore);
 
 /**
  * @brief Hides the console cursor to prevent flickering.

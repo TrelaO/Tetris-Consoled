@@ -7,5 +7,6 @@ void introTetris();
 
 /**
  * @brief Displays the game over screen and waits for exit confirmation.
+ * @param score The final score of the player.
  */
-void gameOver();
+void gameOver(int score);

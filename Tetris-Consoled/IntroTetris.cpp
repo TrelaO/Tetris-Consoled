@@ -5,132 +5,150 @@
 #include <chrono>
 #include <thread>
 #include <string>
+#include <fstream>
+#include <vector>
+
+// Pomocnicza funkcja do centrowania tekstu na siatce
+void printCentered(HANDLE hOut, int y, const std::string& text, int columns) {
+    COORD pos;
+    pos.X = (short)((columns - (int)text.length()) / 2);
+    pos.Y = (short)y;
+    SetConsoleCursorPosition(hOut, pos);
+    std::cout << text;
+}
+
+void saveScore(const std::string& name, int score) {
+    std::ofstream file("scores.txt", std::ios::app);
+    if (file.is_open()) {
+        file << name << " " << score << "\n";
+        file.close();
+    }
+}
 
 void introTetris() {
-    std::string title = "TETRIS";
-    std::string instructions[] = {
+    // Twoje logo w formie wektora linii
+    std::vector<std::string> logoLines = {
+        " _________ _______ _________ _______ _________ _______ ",
+        "\\__   __/(  ____ \\\\__   __/(  ____ )\\__   __/(  ____ \\",
+        "   ) (   | (    \\/   ) (   | (    )|   ) (   | (    \\/",
+        "   | |   | (__       | |   | (____)|   | |   | (_____ ",
+        "   | |   |  __)      | |   |     __)   | |   (_____  )",
+        "   | |   | (         | |   | (\\ (      | |         ) |",
+        "   | |   | (____/\\   | |   | ) \\ \\_____) (___/\\____) |",
+        "   )_(   (_______/   )_(   |/   \\__/\\_______/\\_______)"
+    };
+
+    std::vector<std::string> instructions = {
         "Press ENTER to start game",
         "Press SHIFT for help",
         "Press ESC to exit"
     };
-    const int animationDelay = 100;
 
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     bool showAnimation = true;
 
     while (true) {
         system("cls");
-
-        HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFO csbi;
-        GetConsoleScreenBufferInfo(consoleHandle, &csbi);
+        GetConsoleScreenBufferInfo(hOut, &csbi);
         int columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
         int rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 
-        int titleStartPos = (columns - (int)title.length()) / 2;
-        int instructionsStartPos[3];
-        for (int i = 0; i < 3; ++i) {
-            instructionsStartPos[i] = (columns - (int)instructions[i].length()) / 2;
-        }
+        // Start rysowania od połowy wysokości minus połowa wysokości logo
+        int startY = (rows / 2) - ((int)logoLines.size() / 2) - 4;
 
-        COORD pos;
-        pos.X = (short)titleStartPos;
-        pos.Y = (short)(rows / 2 - 3);
-        SetConsoleCursorPosition(consoleHandle, pos);
-
-        if (showAnimation) {
-            for (char c : title) {
-                std::cout << c;
-                std::this_thread::sleep_for(std::chrono::milliseconds(animationDelay));
-            }
-            showAnimation = false;
-        } else {
-            std::cout << title;
-        }
-
-        for (int i = 0; i < 3; ++i) {
-            pos.X = (short)instructionsStartPos[i];
-            pos.Y += 2;
-            SetConsoleCursorPosition(consoleHandle, pos);
-            std::cout << instructions[i] << std::endl;
-        }
-
-        bool actionTaken = false;
-        while (!actionTaken) {
-            if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
-                system("cls");
-                return; 
-            }
-            else if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-                exit(0); 
-            }
-            else if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-                system("cls");
-                std::cout << "Help:\n";
-                std::cout << "Use arrow keys or WSAD to move/rotate.\n";
-                std::cout << "Press Z or ESC to pause the game.\n";
-                std::cout << "In Pause: ESC - back to Menu, Q - Quit Game.\n";
-                std::cout << "\nPress ENTER to return to menu.";
-
-                while (!(GetAsyncKeyState(VK_RETURN) & 0x8000)) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        // Rysowanie logo linia po linii (centrowanie)
+        for (size_t i = 0; i < logoLines.size(); ++i) {
+            int x = (columns - (int)logoLines[i].length()) / 2;
+            SetConsoleCursorPosition(hOut, { (short)x, (short)(startY + (int)i) });
+            
+            if (showAnimation) {
+                for (char c : logoLines[i]) {
+                    std::cout << c;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 }
+            } else {
+                std::cout << logoLines[i];
+            }
+        }
+        showAnimation = false;
+
+        // Instrukcje
+        int instrY = startY + (int)logoLines.size() + 2;
+        for (int i = 0; i < instructions.size(); ++i) {
+            printCentered(hOut, instrY + (i * 2), instructions[i], columns);
+        }
+
+        while (true) {
+            if (GetAsyncKeyState(VK_RETURN) & 0x8000) return;
+            if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) exit(0);
+            if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
+                system("cls");
+                printCentered(hOut, 5, "--- HELP ---", columns);
+                printCentered(hOut, 7, "Arrows / WSAD - Move & Rotate", columns);
+                printCentered(hOut, 9, "Z / ESC - Pause", columns);
+                printCentered(hOut, 11, "C - Hold Block", columns);
+                printCentered(hOut, 15, "Press ENTER to return", columns);
+                
+                while (!(GetAsyncKeyState(VK_RETURN) & 0x8000)) std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 while (GetAsyncKeyState(VK_RETURN) & 0x8000) {} 
-                actionTaken = true; 
+                break; 
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
 }
 
-void gameOver() {
-    std::string gameOverText = "GAME OVER";
-    std::string instructions[] = {
-        "Press ENTER to return to Menu",
-        "Press ESC to exit game"
-    };
-
+void gameOver(int score) {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     system("cls");
 
-    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(consoleHandle, &csbi);
+    GetConsoleScreenBufferInfo(hOut, &csbi);
     int columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     int rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 
-    int gameOverStartPos = (columns - (int)gameOverText.length()) / 2;
-    int instrStartPos[2];
-    for (int i = 0; i < 2; ++i) {
-        instrStartPos[i] = (columns - (int)instructions[i].length()) / 2;
-    }
+    int centerY = rows / 2;
 
-    COORD pos;
-    pos.X = (short)gameOverStartPos;
-    pos.Y = (short)(rows / 2 - 2);
-    SetConsoleCursorPosition(consoleHandle, pos);
+    printCentered(hOut, centerY - 4, "GAME OVER", columns);
+    printCentered(hOut, centerY - 2, "YOUR SCORE: " + std::to_string(score), columns);
+    printCentered(hOut, centerY, "Enter name to save (ESC to skip):", columns);
 
-    for (char c : gameOverText) {
-        std::cout << c;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    for (int i = 0; i < 2; ++i) {
-        pos.X = (short)instrStartPos[i];
-        pos.Y += 2;
-        SetConsoleCursorPosition(consoleHandle, pos);
-        std::cout << instructions[i] << std::endl;
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    while (GetAsyncKeyState(VK_RETURN) & 0x8000) {}
+    // Pozycjonowanie pola wpisywania imienia
+    COORD inputPos = { (short)(columns / 2 - 11), (short)(centerY + 1) };
+    SetConsoleCursorPosition(hOut, inputPos);
+    
+    std::string playerName = "";
+    bool skipSave = false;
 
     while (true) {
-        if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
-            system("cls");
-            return; 
+        if (_kbhit()) {
+            int ch = _getch();
+            if (ch == 27) { skipSave = true; break; }
+            if (ch == 13) break;
+            if (ch == 8 && !playerName.empty()) {
+                playerName.pop_back();
+                std::cout << "\b \b";
+            } else if (isprint(ch) && playerName.length() < 20) {
+                playerName += (char)ch;
+                std::cout << (char)ch;
+            }
         }
-        else if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-            exit(0); 
-        }
+    }
+
+    if (!skipSave && !playerName.empty()) {
+        saveScore(playerName, score);
+        printCentered(hOut, centerY + 3, "SCORE SAVED!", columns);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    system("cls");
+    printCentered(hOut, centerY - 1, "Press ENTER for Menu", columns);
+    printCentered(hOut, centerY + 1, "Press ESC to Exit", columns);
+
+    while (true) {
+        if (GetAsyncKeyState(VK_RETURN) & 0x8000) return;
+        if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) exit(0);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 }

@@ -9,7 +9,7 @@
 
 static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap);
 
-bool mainLoop() {
+bool mainLoop(int& finalScore) {
     auto lastTime = std::chrono::high_resolution_clock::now();
     const int boardWidth = 10;
     const int boardHeight = 20;
@@ -78,7 +78,8 @@ bool mainLoop() {
                 block = Block(currentType, board.getWidth() / 2 - 1, 0);
                 canSwap = true;
                 if (board.checkCollision(block)) {
-                    return false;
+                    finalScore = score; // Zapisujemy wynik końcowy
+                    return false; // Game Over
                 }
             }
             board.addBlock(block);
