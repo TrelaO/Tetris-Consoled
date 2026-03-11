@@ -1,12 +1,11 @@
 ﻿#pragma once
+#include <string>
 
-/**
- * @brief Displays the intro screen with title and instructions.
- */
-void introTetris();
+struct Settings {
+    bool ghostBlocks = true;
+};
 
-/**
- * @brief Displays the game over screen and waits for exit confirmation.
- * @param score The final score of the player.
- */
+Settings loadSettings();
+void saveSettings(const Settings& s);
+void introTetris(Settings& settings); // Zmieniamy sygnaturę
 void gameOver(int score);

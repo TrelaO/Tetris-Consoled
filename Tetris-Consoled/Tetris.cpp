@@ -4,10 +4,11 @@
 #include "IntroTetris.h"
 
 int main() {
+    Settings settings = loadSettings(); 
     while (true) {
-        introTetris(); 
+        introTetris(settings); 
         int score = 0;
-        bool exitedToMenu = mainLoop(score);
+        bool exitedToMenu = mainLoop(score); 
         
         if (!exitedToMenu) {
             gameOver(score); 
@@ -15,3 +16,8 @@ int main() {
     }
     return 0;
 }
+
+
+
+
+

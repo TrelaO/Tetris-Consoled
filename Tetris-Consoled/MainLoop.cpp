@@ -9,7 +9,9 @@
 #include <windows.h>
 #include <thread>
 
-static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap, bool& hardDrop);
+static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, 
+                         Block::Type& currentType, Block::Type& nextType, Block::Type& holdType, 
+                         bool& hasHold, bool& canSwap, bool& hardDrop);
 
 bool mainLoop(int& finalScore) {
     auto lastTime = std::chrono::high_resolution_clock::now();
@@ -42,7 +44,7 @@ bool mainLoop(int& finalScore) {
 
         bool playerMove = false;
         bool hardDrop = false; 
-        processInput(board, block, playerMove, gamePaused, currentType, holdType, hasHold, canSwap, hardDrop);
+        processInput(board, block, playerMove, gamePaused, currentType, nextType, holdType, hasHold, canSwap, hardDrop);
         
         if (gamePaused) {
             pauseGame(board, gamePaused);
@@ -75,9 +77,9 @@ bool mainLoop(int& finalScore) {
                 }
 
                 blockCount++;
-                if (blockCount % 8 == 0) {
+                if (blockCount % 10 == 0) {
                     level++;
-                    fallSpeed *= 0.9f;
+                    fallSpeed *= 0.95f;
                 }
 
                 currentType = nextType;
@@ -92,7 +94,7 @@ bool mainLoop(int& finalScore) {
             board.addBlock(block);
             lastTime = currentTime;
         }
-        board.updateWell(nextType, holdType, hasHold, level, score);
+        board.updateWell(block, nextType, holdType, hasHold, level, score, false);
     }
 }
 
@@ -105,7 +107,8 @@ void hideCursor() {
 }
 
 static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, 
-                         Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap, bool& hardDrop) {
+                         Block::Type& currentType, Block::Type& nextType, Block::Type& holdType, 
+                         bool& hasHold, bool& canSwap, bool& hardDrop) {
     if (_kbhit()) {
         int ch = _getch();
         
@@ -168,7 +171,7 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
                 hardDrop = true; 
                 playerMove = true;
                 break;
-            case 'w': case 'W':
+            case 'w' : case 'W':
             rotate_logic:
                 block.rotate();
                 if (board.checkCollision(block)) {
@@ -199,13 +202,17 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
             board.addBlock(block);
         }
 
+        // Wewnątrz processInput:
         if ((ch == 'c' || ch == 'C') && !gamePaused && canSwap) {
             board.removeBlock(block);
             if (!hasHold) {
-                holdType = currentType;
-                currentType = static_cast<Block::Type>(rand() % 7); 
+                // Pierwszy raz w hold:
+                holdType = currentType;     // Obecny idzie do hold
+                currentType = nextType;     // Następny staje się obecnym
+                nextType = static_cast<Block::Type>(rand() % 7); // Losujemy nowy "następny"
                 hasHold = true;
             } else {
+                // Zwyczajna zamiana:
                 Block::Type temp = currentType;
                 currentType = holdType;
                 holdType = temp;

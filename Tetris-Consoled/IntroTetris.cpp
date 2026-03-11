@@ -26,7 +26,26 @@ void saveScore(const std::string& name, int score) {
     }
 }
 
-void introTetris() {
+Settings loadSettings() {
+    Settings s;
+    std::ifstream file("settings.txt");
+    if (file.is_open()) {
+        file >> s.ghostBlocks;
+        file.close();
+    }
+    return s;
+}
+
+void saveSettings(const Settings& s) {
+    std::ofstream file("settings.txt");
+    if (file.is_open()) {
+        file << s.ghostBlocks;
+        file.close();
+    }
+}
+
+void introTetris(Settings& settings) {
+
     std::vector<std::string> logoLines = {
         " _________ _______ _________ _______ _________ _______ ",
         "\\__   __/(  ____ \\\\__   __/(  ____ )\\__   __/(  ____ \\",
@@ -40,7 +59,7 @@ void introTetris() {
 
     std::vector<std::string> instructions = {
         "Press ENTER to start game",
-        "Press SHIFT for help",
+        "Press SHIFT for Options & Help",
         "Press ESC to exit"
     };
 
@@ -88,21 +107,37 @@ void introTetris() {
             if (GetAsyncKeyState(VK_RETURN) & 0x8000) return;
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) exit(0);
             if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-                system("cls");
-                printCentered(hOut, 4, "--- HELP ---", columns);
-                printCentered(hOut, 6, "Arrows / WSAD - Move & Rotate", columns);
-                printCentered(hOut, 8, "SPACE - Hard Drop", columns);
-                printCentered(hOut, 10, "Z / ESC - Pause", columns);
-                printCentered(hOut, 12, "C - Hold Block", columns);
-                printCentered(hOut, 16, "Press ENTER to return", columns);
-                
-               
-                while (GetAsyncKeyState(VK_SHIFT) & 0x8000) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                while (true) {
+                    system("cls");
+                    printCentered(hOut, 2, "--- OPTIONS & HELP ---", columns);
+                    
+                    // Wyświetlanie aktualnego stanu opcji
+                    std::string ghostStatus = settings.ghostBlocks ? "[ON]" : "[OFF]";
+                    printCentered(hOut, 4, "1. Ghost Blocks: " + ghostStatus + " (Press '1' to toggle)", columns);
+                    
+                    printCentered(hOut, 7, "--- CONTROLS ---", columns);
+                    printCentered(hOut, 9, "Arrows / WSAD - Move & Rotate", columns);
+                    printCentered(hOut, 11, "SPACE - Hard Drop", columns);
+                    printCentered(hOut, 13, "Z / ESC - Pause", columns);
+                    printCentered(hOut, 15, "C - Hold Block", columns);
+                    printCentered(hOut, 19, "Press ENTER to save and return", columns);
 
-                while (!(GetAsyncKeyState(VK_RETURN) & 0x8000)) std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                
-                while (GetAsyncKeyState(VK_RETURN) & 0x8000) std::this_thread::sleep_for(std::chrono::milliseconds(10)); 
-
+                    bool redraw = false;
+                    while (!redraw) {
+                        if (GetAsyncKeyState('1') & 0x8000) {
+                            settings.ghostBlocks = !settings.ghostBlocks;
+                            saveSettings(settings); // Zapisujemy przy każdej zmianie
+                            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                            redraw = true;
+                        }
+                        if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+                             while (GetAsyncKeyState(VK_RETURN) & 0x8000) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                             goto exit_options; 
+                        }
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    }
+                }
+                exit_options:
                 break; 
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));

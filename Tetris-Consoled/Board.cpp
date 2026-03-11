@@ -11,7 +11,9 @@ const int BOARD_DRAW_X = OFFSET_X + 2;
 const int HUD_X = OFFSET_X + 29;       
 
 Board::Board(int w, int h) 
-    : boardWidth(w), boardHeight(h), well(w, std::vector<int>(h, 0)), 
+    : boardWidth(w), boardHeight(h), 
+      well(w, std::vector<int>(h, 0)), 
+      displayBuffer(w, std::vector<std::string>(h, "  ")), // Initialize buffer size
       lastNextType(Block::Type::I), lastHoldType(Block::Type::I) {}
 
 void Board::addBlock(const Block& block) {
@@ -114,15 +116,45 @@ static void drawBlockPreview(Block::Type type, int startX, int startY, const std
     }
 }
 
-void Board::updateWell(Block::Type nextType, Block::Type holdType, bool hasHold, int level, int score) {
+void Board::updateWell(const Block& currentBlock, Block::Type nextType, Block::Type holdType, bool hasHold, int level, int score, bool showGhost) {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    
+
+    // 1. Oblicz pozycję ducha (tylko jeśli włączony)
+    std::vector<Point> ghostPoints;
+    if (showGhost) {
+        Block ghost = currentBlock;
+        removeBlock(ghost);
+        while (!checkCollision(ghost)) {
+            ghost.moveDown();
+        }
+        ghost.moveUp();
+        addBlock(currentBlock);
+        ghostPoints = ghost.getPoints();
+    }
+
+    // 2. Renderowanie siatki
     for (int i = 0; i < boardHeight; ++i) {
-        SetConsoleCursorPosition(hOut, { (short)BOARD_DRAW_X, (short)(OFFSET_Y + i) });
         for (int j = 0; j < boardWidth; ++j) {
-            if (well[j][i] == 1) std::cout << "()";
-            else if (well[j][i] == 2) std::cout << "[]";
-            else std::cout << "  ";
+            std::string symbol = "  ";
+
+            // Logika priorytetów wyświetlania
+            if (this->well[j][i] == 1) symbol = "()";      // Aktywny blok
+            else if (well[j][i] == 2) symbol = "[]"; // Zablokowany blok
+            else {
+                // Sprawdź czy tu jest duch
+                for (const auto& p : ghostPoints) {
+                    if (p.x == j && p.y == i) {
+                        symbol = "::";
+                        break;
+                    }
+                }
+            }
+
+            if (symbol != displayBuffer[j][i] || firstDraw) {
+                SetConsoleCursorPosition(hOut, { (short)(BOARD_DRAW_X + (j * 2)), (short)(OFFSET_Y + i) });
+                std::cout << symbol;
+                displayBuffer[j][i] = symbol;
+            }
         }
     }
 
@@ -169,4 +201,34 @@ bool Board::checkCollision(const Block& block) const {
         }
     }
     return false;
+}
+
+void Board::drawGhostBlock(const Block& block) {
+    Block ghost = block;
+    
+    // 1. Zdejmij na chwilę aktywny blok z tablicy, aby nie kolidował sam ze sobą podczas obliczeń
+    // (Zależy od tego, czy addBlock zostało wywołane przed tą funkcją w MainLoop)
+    
+    // 2. Przesuń ducha w dół, aż napotka kolizję
+    while (!checkCollision(ghost)) {
+        ghost.moveDown();
+    }
+    ghost.moveUp(); // Cofnij o jeden krok do ostatniej poprawnej pozycji
+
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    
+    // 3. Narysuj punkty ducha
+    for (const auto& point : ghost.getPoints()) {
+        if (point.x >= 0 && point.x < boardWidth && point.y >= 0 && point.y < boardHeight) {
+            // Sprawdź czy na tej pozycji nie ma już aktywnego bloku (well == 1) lub zablokowanego (well == 2)
+            if (well[point.x][point.y] == 0) {
+                // Oblicz pozycję kursora identycznie jak w updateWell
+                short consoleX = (short)(BOARD_DRAW_X + (point.x * 2));
+                short consoleY = (short)(OFFSET_Y + point.y);
+                
+                SetConsoleCursorPosition(hOut, { consoleX, consoleY });
+                std::cout << "::"; // Symbol ducha
+            }
+        }
+    }
 }
