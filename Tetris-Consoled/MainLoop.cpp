@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <thread>
 
-static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap);
+static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap, bool& hardDrop);
 
 bool mainLoop(int& finalScore) {
     auto lastTime = std::chrono::high_resolution_clock::now();
@@ -41,7 +41,8 @@ bool mainLoop(int& finalScore) {
         std::chrono::duration<float> elapsed = currentTime - lastTime;
 
         bool playerMove = false;
-        processInput(board, block, playerMove, gamePaused, currentType, holdType, hasHold, canSwap);
+        bool hardDrop = false; 
+        processInput(board, block, playerMove, gamePaused, currentType, holdType, hasHold, canSwap, hardDrop);
         
         if (gamePaused) {
             pauseGame(board, gamePaused);
@@ -52,9 +53,17 @@ bool mainLoop(int& finalScore) {
             continue;
         }
 
-        if (elapsed.count() >= fallSpeed) {
+        if (hardDrop || elapsed.count() >= fallSpeed) {
             board.removeBlock(block);
-            block.moveDown();
+            
+            if (hardDrop) {
+
+                while (!board.checkCollision(block)) {
+                    block.moveDown();
+                }
+            } else {
+                block.moveDown();
+            }
 
             if (board.checkCollision(block)) {
                 block.moveUp();
@@ -96,7 +105,7 @@ void hideCursor() {
 }
 
 static void processInput(Board& board, Block& block, bool& playerMove, bool& gamePaused, 
-                         Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap) {
+                         Block::Type& currentType, Block::Type& holdType, bool& hasHold, bool& canSwap, bool& hardDrop) {
     if (_kbhit()) {
         int ch = _getch();
         
@@ -153,6 +162,10 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
             case 's': case 'S':
                 block.moveDown();
                 if (board.checkCollision(block)) block.moveUp();
+                playerMove = true;
+                break;
+            case 32: 
+                hardDrop = true; 
                 playerMove = true;
                 break;
             case 'w': case 'W':

@@ -89,14 +89,20 @@ void introTetris() {
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) exit(0);
             if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
                 system("cls");
-                printCentered(hOut, 5, "--- HELP ---", columns);
-                printCentered(hOut, 7, "Arrows / WSAD - Move & Rotate", columns);
-                printCentered(hOut, 9, "Z / ESC - Pause", columns);
-                printCentered(hOut, 11, "C - Hold Block", columns);
-                printCentered(hOut, 15, "Press ENTER to return", columns);
+                printCentered(hOut, 4, "--- HELP ---", columns);
+                printCentered(hOut, 6, "Arrows / WSAD - Move & Rotate", columns);
+                printCentered(hOut, 8, "SPACE - Hard Drop", columns);
+                printCentered(hOut, 10, "Z / ESC - Pause", columns);
+                printCentered(hOut, 12, "C - Hold Block", columns);
+                printCentered(hOut, 16, "Press ENTER to return", columns);
                 
+               
+                while (GetAsyncKeyState(VK_SHIFT) & 0x8000) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
                 while (!(GetAsyncKeyState(VK_RETURN) & 0x8000)) std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                while (GetAsyncKeyState(VK_RETURN) & 0x8000) {} 
+                
+                while (GetAsyncKeyState(VK_RETURN) & 0x8000) std::this_thread::sleep_for(std::chrono::milliseconds(10)); 
+
                 break; 
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -128,7 +134,7 @@ void gameOver(int score) {
     while (true) {
         if (_kbhit()) {
             int ch = _getch();
-            if (ch == 27) { skipSave = true; break; }
+            if (ch == 27) { skipSave = true; break; } 
             if (ch == 13) break;
             if (ch == 8 && !playerName.empty()) {
                 playerName.pop_back();
@@ -138,6 +144,10 @@ void gameOver(int score) {
                 std::cout << (char)ch;
             }
         }
+    }
+
+    while (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     if (!skipSave && !playerName.empty()) {
@@ -151,7 +161,10 @@ void gameOver(int score) {
     printCentered(hOut, centerY + 1, "Press ESC to Exit", columns);
 
     while (true) {
-        if (GetAsyncKeyState(VK_RETURN) & 0x8000) return;
+        if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+            while (GetAsyncKeyState(VK_RETURN) & 0x8000) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            return;
+        }
         if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) exit(0);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
