@@ -13,7 +13,7 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
                          Block::Type& currentType, Block::Type& nextType, Block::Type& holdType, 
                          bool& hasHold, bool& canSwap, bool& hardDrop);
 
-bool mainLoop(int& finalScore) {
+bool mainLoop(int& finalScore, const Settings& settings) {
     auto lastTime = std::chrono::high_resolution_clock::now();
     const int boardWidth = 10;
     const int boardHeight = 20;
@@ -39,6 +39,10 @@ bool mainLoop(int& finalScore) {
     bool gamePaused = false;
 
     while (true) {
+        if (!settings.fullscreen) {
+            board.recalculateOffsets(level, score);
+        }
+
         auto currentTime = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> elapsed = currentTime - lastTime;
 
@@ -94,7 +98,7 @@ bool mainLoop(int& finalScore) {
             board.addBlock(block);
             lastTime = currentTime;
         }
-        board.updateWell(block, nextType, holdType, hasHold, level, score, false);
+        board.updateWell(block, nextType, holdType, hasHold, level, score, settings.ghostBlocks);
     }
 }
 
@@ -202,17 +206,14 @@ static void processInput(Board& board, Block& block, bool& playerMove, bool& gam
             board.addBlock(block);
         }
 
-        // Wewnątrz processInput:
         if ((ch == 'c' || ch == 'C') && !gamePaused && canSwap) {
             board.removeBlock(block);
             if (!hasHold) {
-                // Pierwszy raz w hold:
-                holdType = currentType;     // Obecny idzie do hold
-                currentType = nextType;     // Następny staje się obecnym
-                nextType = static_cast<Block::Type>(rand() % 7); // Losujemy nowy "następny"
+                holdType = currentType;     
+                currentType = nextType;     
+                nextType = static_cast<Block::Type>(rand() % 7); 
                 hasHold = true;
             } else {
-                // Zwyczajna zamiana:
                 Block::Type temp = currentType;
                 currentType = holdType;
                 holdType = temp;
@@ -229,28 +230,41 @@ void pauseGame(Board& board, bool& gamePaused) {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(consoleHandle, &csbi);
+    
     int columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     int rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 
-    int pauseMessagePosX = (columns - 102);
-    int pauseMessagePosY = (rows - 5);  
+    int boardH = board.getHeight();
+    int offsetY = (rows - boardH) / 2;
+    if (offsetY < 0) offsetY = 0;
 
-    COORD pos;
-    pos.X = (short)pauseMessagePosX;
-    pos.Y = (short)pauseMessagePosY;
-    SetConsoleCursorPosition(consoleHandle, pos);
+    int menuStartY = offsetY + boardH + 2;
 
-    std::cout << "Paused. 'Z' - Resume, 'ESC' - Main Menu, 'Q' - Quit Game";
+    std::string msg1 = "--- GAME PAUSED ---";
+    std::string msg2 = "'Z' - Resume Game";
+    std::string msg3 = "'ESC' - Exit to Main Menu";
+    std::string msg4 = "'Q' - Quit Game";
+
+    auto printAtCenter = [&](int y, const std::string& text) {
+        if (y >= rows) return; 
+
+        COORD pos;
+        pos.X = (short)((columns - (int)text.length()) / 2);
+        pos.Y = (short)y;
+        SetConsoleCursorPosition(consoleHandle, pos);
+        std::cout << text;
+    };
+
+    printAtCenter(menuStartY,     msg1);
+    printAtCenter(menuStartY + 1, msg2);
+    printAtCenter(menuStartY + 2, msg3);
+    printAtCenter(menuStartY + 3, msg4);
 
     while (gamePaused) {
         if (_kbhit()) {
             int ch = _getch();
-            if (ch == 27) { 
-                return; 
-            }
-            else if (ch == 'q' || ch == 'Q') {
-                exit(0); 
-            }
+            if (ch == 27) return; 
+            else if (ch == 'q' || ch == 'Q') exit(0); 
             else if (ch == 'z' || ch == 'Z') {
                 gamePaused = false;  
                 break;
@@ -258,6 +272,9 @@ void pauseGame(Board& board, bool& gamePaused) {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    
     system("cls");
-    if (!gamePaused) board.drawBoard(1, 0);
+    if (!gamePaused) {
+        board.drawBoard(1, 0); 
+    }
 }

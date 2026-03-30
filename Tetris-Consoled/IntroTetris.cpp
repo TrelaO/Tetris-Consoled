@@ -9,6 +9,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <algorithm>
 
 void printCentered(HANDLE hOut, int y, const std::string& text, int columns) {
     COORD pos;
@@ -26,11 +27,74 @@ void saveScore(const std::string& name, int score) {
     }
 }
 
+void showHighScores() {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    system("cls");
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hOut, &csbi);
+    int columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    int rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+
+    printCentered(hOut, 2, "--- TOP 10 HIGH SCORES ---", columns);
+
+    std::ifstream file("scores.txt");
+    std::vector<std::pair<int, std::string>> scores;
+    if (file.is_open()) {
+        std::string name;
+        int score;
+        while (file >> name >> score) {
+            scores.push_back({ score, name });
+        }
+        file.close();
+    }
+
+    std::sort(scores.begin(), scores.end(), std::greater<std::pair<int, std::string>>());
+
+    if (scores.empty()) {
+        printCentered(hOut, rows / 2, "No scores recorded yet!", columns);
+    }
+    else {
+        for (int i = 0; i < (int)scores.size() && i < 10; ++i) {
+            std::string entry = std::to_string(i + 1) + ". " + scores[i].second + " - " + std::to_string(scores[i].first);
+            printCentered(hOut, 5 + i, entry, columns);
+        }
+    }
+
+    printCentered(hOut, rows - 3, "Press ENTER to return to Menu", columns);
+
+    while (!(GetAsyncKeyState(VK_RETURN) & 0x8000)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    while (GetAsyncKeyState(VK_RETURN) & 0x8000) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+}
+
+void toggleFullscreen(bool fullscreen) {
+    HWND hwnd = GetConsoleWindow();
+    if (!hwnd) return;
+
+    DWORD style = GetWindowLong(hwnd, GWL_STYLE);
+
+    if (fullscreen) {
+        SetWindowLong(hwnd, GWL_STYLE, style & ~(WS_CAPTION | WS_THICKFRAME));
+        ShowWindow(hwnd, SW_MAXIMIZE);
+    } else {
+        SetWindowLong(hwnd, GWL_STYLE, style | WS_CAPTION | WS_THICKFRAME);
+        ShowWindow(hwnd, SW_SHOWNORMAL);
+    }
+
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hOut, &csbi);
+    
+    SetConsoleWindowInfo(hOut, TRUE, &csbi.srWindow);
+}
+
 Settings loadSettings() {
     Settings s;
     std::ifstream file("settings.txt");
     if (file.is_open()) {
-        file >> s.ghostBlocks;
+        file >> s.ghostBlocks >> s.fullscreen;
         file.close();
     }
     return s;
@@ -39,7 +103,7 @@ Settings loadSettings() {
 void saveSettings(const Settings& s) {
     std::ofstream file("settings.txt");
     if (file.is_open()) {
-        file << s.ghostBlocks;
+        file << s.ghostBlocks << " " << s.fullscreen;
         file.close();
     }
 }
@@ -60,6 +124,7 @@ void introTetris(Settings& settings) {
     std::vector<std::string> instructions = {
         "Press ENTER to start game",
         "Press SHIFT for Options & Help",
+        "Press H to see High Scores",
         "Press ESC to exit"
     };
 
@@ -106,27 +171,39 @@ void introTetris(Settings& settings) {
         while (true) {
             if (GetAsyncKeyState(VK_RETURN) & 0x8000) return;
             if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) exit(0);
+            if (GetAsyncKeyState('H') & 0x8000) { 
+                showHighScores();
+                break; 
+            }
             if (GetAsyncKeyState(VK_SHIFT) & 0x8000) {
-                while (true) {
+                    while (true) {
                     system("cls");
                     printCentered(hOut, 2, "--- OPTIONS & HELP ---", columns);
                     
-                    // Wyświetlanie aktualnego stanu opcji
                     std::string ghostStatus = settings.ghostBlocks ? "[ON]" : "[OFF]";
+                    std::string fsStatus = settings.fullscreen ? "[ON]" : "[OFF]";
                     printCentered(hOut, 4, "1. Ghost Blocks: " + ghostStatus + " (Press '1' to toggle)", columns);
+                    printCentered(hOut, 6, "2. Fullscreen: " + fsStatus + " (Press '2' to toggle)", columns);
                     
-                    printCentered(hOut, 7, "--- CONTROLS ---", columns);
-                    printCentered(hOut, 9, "Arrows / WSAD - Move & Rotate", columns);
-                    printCentered(hOut, 11, "SPACE - Hard Drop", columns);
-                    printCentered(hOut, 13, "Z / ESC - Pause", columns);
-                    printCentered(hOut, 15, "C - Hold Block", columns);
-                    printCentered(hOut, 19, "Press ENTER to save and return", columns);
+                    printCentered(hOut, 9, "--- CONTROLS ---", columns);
+                    printCentered(hOut, 11, "Arrows / WSAD - Move & Rotate", columns);
+                    printCentered(hOut, 13, "SPACE - Hard Drop", columns);
+                    printCentered(hOut, 15, "Z / ESC - Pause", columns);
+                    printCentered(hOut, 17, "C - Hold Block", columns);
+                    printCentered(hOut, 21, "Press ENTER to save and return", columns);
 
                     bool redraw = false;
                     while (!redraw) {
                         if (GetAsyncKeyState('1') & 0x8000) {
                             settings.ghostBlocks = !settings.ghostBlocks;
-                            saveSettings(settings); // Zapisujemy przy każdej zmianie
+                            saveSettings(settings);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                            redraw = true;
+                        }
+                        if (GetAsyncKeyState('2') & 0x8000) {
+                            settings.fullscreen = !settings.fullscreen;
+                            toggleFullscreen(settings.fullscreen);
+                            saveSettings(settings);
                             std::this_thread::sleep_for(std::chrono::milliseconds(200));
                             redraw = true;
                         }
@@ -158,9 +235,9 @@ void gameOver(int score) {
 
     printCentered(hOut, centerY - 4, "GAME OVER", columns);
     printCentered(hOut, centerY - 2, "YOUR SCORE: " + std::to_string(score), columns);
-    printCentered(hOut, centerY, "Enter name to save (ESC to skip):", columns);
+    printCentered(hOut, centerY + 1, "Enter name to save (ESC to skip):", columns);
 
-    COORD inputPos = { (short)(columns / 2 - 11), (short)(centerY + 1) };
+    COORD inputPos = { (short)(columns / 2 - 11), (short)(centerY + 3) };
     SetConsoleCursorPosition(hOut, inputPos);
     
     std::string playerName = "";
@@ -187,7 +264,7 @@ void gameOver(int score) {
 
     if (!skipSave && !playerName.empty()) {
         saveScore(playerName, score);
-        printCentered(hOut, centerY + 3, "SCORE SAVED!", columns);
+        printCentered(hOut, centerY + 5, "SCORE SAVED!", columns);
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
